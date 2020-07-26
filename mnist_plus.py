@@ -5,7 +5,7 @@ from dezero.models import Model
 import dezero.layers as L
 
 
-class MNISTConv(Model):
+class MNISTPlus(Model):
     def __init__(self, hidden_size=100):
         super().__init__()
         self.conv1 = L.Conv2d(30, kernel_size=3, stride=1, pad=1)
