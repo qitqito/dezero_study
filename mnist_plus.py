@@ -5,35 +5,35 @@ from dezero.models import Model
 import dezero.layers as L
 
 
-class MNISTPlus(Model):
+class MNISTConv(Model):
     def __init__(self, hidden_size=100):
         super().__init__()
-        self.conv1 = L.Conv2d(1, kernel_size=3, stride=1, pad=1)
+        self.conv1 = L.Conv2d(30, kernel_size=3, stride=1, pad=1)
         #self.conv2 = L.Conv2d(1, kernel_size=3, stride=1, pad=1)
         self.fc3 = L.Linear(hidden_size)
-        self.fc4 = L.Linear(hidden_size)
+        #self.fc4 = L.Linear(hidden_size)
         self.fc5 = L.Linear(10)
 
     def forward(self, x):
-        x = F.relu(self.conv1(x)) # 28x28
-        x = F.pooling(x, 2, 2) # 14x14
+        x = F.relu(self.conv1(x)) # (OH, OW)=(24, 24)
+        x = F.pooling(x, 2, 2) # (OH, OW)=(12, 12)
         #x = F.relu(self.conv2(x))
         #x = F.pooling(x, 2, 2)
-        x = F.reshape(x, (x.shape[0], -1)) # 14x14を196に
+        x = F.reshape(x, (x.shape[0], -1)) # (12, 12)->(144, )
         x = F.dropout(F.relu(self.fc3(x)))
-        x = F.dropout(F.relu(self.fc4(x)))
+        #x = F.dropout(F.relu(self.fc4(x)))
         x = self.fc5(x)
         return x
 
 max_epoch = 20
 batch_size = 100
 
-train_set = dezero.datasets.MNIST(train=True, transform=None) # 28x28のまま
-test_set = dezero.datasets.MNIST(train=False, transform=None) # 28x28のまま
+train_set = dezero.datasets.MNIST(train=True, transform=None) # (28, 28)
+test_set = dezero.datasets.MNIST(train=False, transform=None) # (28, 28)
 train_loader = DataLoader(train_set, batch_size)
 test_loader = DataLoader(test_set, batch_size, shuffle=False)
 
-model = MNISTPlus(1000)
+model = MNISTConv()
 optimizer = dezero.optimizers.Adam().setup(model)
 optimizer.add_hook(dezero.optimizers.WeightDecay(1e-4))  # Weight decay
 
