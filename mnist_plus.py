@@ -15,11 +15,11 @@ class MNISTConv(Model):
         self.fc5 = L.Linear(10)
 
     def forward(self, x):
-        x = F.relu(self.conv1(x)) # (OH, OW)=(24, 24)
-        x = F.pooling(x, 2, 2) # (OH, OW)=(12, 12)
+        x = F.relu(self.conv1(x)) # (OH, OW)=(28, 28)
+        x = F.pooling(x, 2, 2) # (OH, OW)=(14, 14)
         #x = F.relu(self.conv2(x))
         #x = F.pooling(x, 2, 2)
-        x = F.reshape(x, (x.shape[0], -1)) # (12, 12)->(144, )
+        x = F.reshape(x, (x.shape[0], -1)) # (14, 14)->(196, )
         x = F.dropout(F.relu(self.fc3(x)))
         #x = F.dropout(F.relu(self.fc4(x)))
         x = self.fc5(x)
