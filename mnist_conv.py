@@ -1,0 +1,102 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+import dezero
+import dezero.functions as F
+from dezero import DataLoader
+from dezero.models import Model
+import dezero.layers as L
+
+
+def filter_show(filters, nx=8, margin=3, scale=10):
+    """
+    c.f. https://gist.github.com/aidiary/07d530d5e08011832b12#file-draw_weight-py
+    """
+    FN, C, FH, FW = filters.shape
+    ny = int(np.ceil(FN / nx))
+
+    fig = plt.figure()
+    fig.subplots_adjust(left=0, right=1, bottom=0, top=1, hspace=0.05, wspace=0.05)
+
+    for i in range(FN):
+        ax = fig.add_subplot(ny, nx, i+1, xticks=[], yticks=[])
+        ax.imshow(filters[i, 0], cmap=plt.cm.gray_r, interpolation='nearest')
+    plt.show()
+
+class MNISTConv(Model):
+    def __init__(self, hidden_size=100):
+        super().__init__()
+        self.conv1_1 = L.Conv2d(16, kernel_size=3, stride=1, pad=1)
+        self.conv1_2 = L.Conv2d(16, kernel_size=3, stride=1, pad=1)
+        self.conv2_1 = L.Conv2d(32, kernel_size=3, stride=1, pad=1)
+        self.conv2_2 = L.Conv2d(32, kernel_size=3, stride=1, pad=1)
+        self.fc3 = L.Linear(hidden_size)
+        self.fc4 = L.Linear(10)
+
+    def forward(self, x):
+        x = F.relu(self.conv1_1(x)) # (OH, OW)=(28, 28)
+        x = F.relu(self.conv1_2(x)) # (OH, OW)=(28, 28)
+        x = F.pooling(x, 2, 2) # (OH, OW)=(14, 14)
+        x = F.relu(self.conv2_1(x)) # (OH, OW)=(14, 14)
+        x = F.relu(self.conv2_2(x)) # (OH, OW)=(14, 14)
+        x = F.pooling(x, 2, 2) # (OH, OW)=(7, 7)
+        x = F.reshape(x, (x.shape[0], -1)) # (7, 7)->(49, )
+        x = F.dropout(F.relu(self.fc3(x)))
+        x = self.fc4(x)
+        return x
+
+max_epoch = 20
+batch_size = 100
+
+train_set = dezero.datasets.MNIST(train=True, transform=None) # (28, 28)
+test_set = dezero.datasets.MNIST(train=False, transform=None) # (28, 28)
+train_loader = DataLoader(train_set, batch_size)
+test_loader = DataLoader(test_set, batch_size, shuffle=False)
+
+model = MNISTConv()
+optimizer = dezero.optimizers.Adam().setup(model)
+optimizer.add_hook(dezero.optimizers.WeightDecay(1e-4))  # Weight decay
+
+if dezero.cuda.gpu_enable:
+    train_loader.to_gpu()
+    test_loader.to_gpu()
+    model.to_gpu()
+
+for epoch in range(max_epoch):
+    sum_loss, sum_acc = 0, 0
+
+    for x, t in train_loader:
+        y = model(x)
+        loss = F.softmax_cross_entropy(y, t)
+        acc = F.accuracy(y, t)
+        model.cleargrads()
+        loss.backward()
+        optimizer.update()
+
+        sum_loss += float(loss.data) * len(t)
+        sum_acc += float(acc.data) * len(t)
+
+    print('epoch: {}'.format(epoch+1))
+    print('train loss: {}, accuracy: {}'.format(
+        sum_loss / len(train_set), sum_acc / len(train_set)))
+
+    sum_loss, sum_acc = 0, 0
+    with dezero.no_grad():
+        for x, t in test_loader:
+            y = model(x)
+            loss = F.softmax_cross_entropy(y, t)
+            acc = F.accuracy(y, t)
+            sum_loss += float(loss.data) * len(t)
+            sum_acc += float(acc.data) * len(t)
+
+    print('test loss: {}, accuracy: {}'.format(
+        sum_loss / len(test_set), sum_acc / len(test_set)))
+
+print("conv1_1")
+filter_show(model.conv1_1.W.data)
+print("conv1_2")
+filter_show(model.conv1_2.W.data)
+print("conv2_1")
+filter_show(model.conv2_1.W.data)
+print("conv2_2")
+filter_show(model.conv2_2.W.data)
